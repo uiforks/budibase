@@ -1,7 +1,6 @@
 // mock out postgres for this
 jest.mock("pg")
 
-const { findLastKey } = require("lodash/fp")
 const setup = require("./utilities")
 const { checkBuilderEndpoint } = require("./utilities/TestFunctions")
 const { basicQuery, basicDatasource } = setup.structures
@@ -94,9 +93,9 @@ describe("/queries", () => {
         const query = await config.createQuery()
         const res = await request
           .get(`/api/queries/${query._id}`)
-          .set(await config.roleHeaders({}))
-          .expect("Content-Type", /json/)
+          .set(await config.defaultHeaders())
           .expect(200)
+          .expect("Content-Type", /json/)
         expect(res.body.fields).toBeUndefined()
         expect(res.body.parameters).toBeUndefined()
         expect(res.body.schema).toBeUndefined()

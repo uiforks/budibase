@@ -24,7 +24,7 @@ describe("/api/global/auth", () => {
     // initially configure settings
     await config.saveSmtpConfig()
     await config.saveSettingsConfig()
-    await config.createUser("test@test.com")
+    await config.createUser()
     const res = await request
       .post(`/api/global/auth/${TENANT_ID}/reset`)
       .send({
@@ -76,7 +76,7 @@ describe("/api/global/auth", () => {
     afterEach(() => {
       expect(strategyFactory).toBeCalledWith(
         chosenConfig, 
-        `http://127.0.0.1:4003/api/global/auth/${TENANT_ID}/oidc/callback` // calculated url
+        `http://localhost:10000/api/global/auth/${TENANT_ID}/oidc/callback`
       )
     })
 

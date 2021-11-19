@@ -1,6 +1,7 @@
 import { notificationStore, dataSourceStore } from "stores"
 import API from "./api"
 import { fetchTableDefinition } from "./tables"
+import { FieldTypes } from "../constants"
 
 /**
  * Fetches data about a certain row in a table.
@@ -31,7 +32,7 @@ export const saveRow = async row => {
     : notificationStore.actions.success("Row saved")
 
   // Refresh related datasources
-  dataSourceStore.actions.invalidateDataSource(row.tableId)
+  await dataSourceStore.actions.invalidateDataSource(row.tableId)
 
   return res
 }
@@ -52,7 +53,7 @@ export const updateRow = async row => {
     : notificationStore.actions.success("Row updated")
 
   // Refresh related datasources
-  dataSourceStore.actions.invalidateDataSource(row.tableId)
+  await dataSourceStore.actions.invalidateDataSource(row.tableId)
 
   return res
 }
@@ -76,7 +77,7 @@ export const deleteRow = async ({ tableId, rowId, revId }) => {
     : notificationStore.actions.success("Row deleted")
 
   // Refresh related datasources
-  dataSourceStore.actions.invalidateDataSource(tableId)
+  await dataSourceStore.actions.invalidateDataSource(tableId)
 
   return res
 }
@@ -99,7 +100,7 @@ export const deleteRows = async ({ tableId, rows }) => {
     : notificationStore.actions.success(`${rows.length} row(s) deleted`)
 
   // Refresh related datasources
-  dataSourceStore.actions.invalidateDataSource(tableId)
+  await dataSourceStore.actions.invalidateDataSource(tableId)
 
   return res
 }
@@ -107,6 +108,8 @@ export const deleteRows = async ({ tableId, rows }) => {
 /**
  * Enriches rows which contain certain field types so that they can
  * be properly displayed.
+ * The ability to create these bindings has been removed, but they will still
+ * exist in client apps to support backwards compatibility.
  */
 export const enrichRows = async (rows, tableId) => {
   if (!Array.isArray(rows)) {
@@ -129,7 +132,7 @@ export const enrichRows = async (rows, tableId) => {
         const keys = Object.keys(schema)
         for (let key of keys) {
           const type = schema[key].type
-          if (type === "link" && Array.isArray(row[key])) {
+          if (type === FieldTypes.LINK && Array.isArray(row[key])) {
             // Enrich row a string join of relationship fields
             row[`${key}_text`] =
               row[key]

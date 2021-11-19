@@ -1,11 +1,44 @@
 import { SqlQuery } from "../definitions/datasource"
-import { Datasource } from "../definitions/common"
+import { Datasource, Table } from "../definitions/common"
 import { SourceNames } from "../definitions/datasource"
 const { DocumentTypes, SEPARATOR } = require("../db/utils")
-const { FieldTypes } = require("../constants")
+const { FieldTypes, BuildSchemaErrors } = require("../constants")
 
 const DOUBLE_SEPARATOR = `${SEPARATOR}${SEPARATOR}`
 const ROW_ID_REGEX = /^\[.*]$/g
+
+const SQL_TYPE_MAP = {
+  text: FieldTypes.LONGFORM,
+  varchar: FieldTypes.STRING,
+  integer: FieldTypes.NUMBER,
+  bigint: FieldTypes.NUMBER,
+  decimal: FieldTypes.NUMBER,
+  smallint: FieldTypes.NUMBER,
+  real: FieldTypes.NUMBER,
+  "double precision": FieldTypes.NUMBER,
+  timestamp: FieldTypes.DATETIME,
+  time: FieldTypes.DATETIME,
+  boolean: FieldTypes.BOOLEAN,
+  json: FieldTypes.JSON,
+  date: FieldTypes.DATETIME,
+  blob: FieldTypes.LONGFORM,
+  enum: FieldTypes.STRING,
+  float: FieldTypes.NUMBER,
+  int: FieldTypes.NUMBER,
+  numeric: FieldTypes.NUMBER,
+  mediumint: FieldTypes.NUMBER,
+  dec: FieldTypes.NUMBER,
+  double: FieldTypes.NUMBER,
+  fixed: FieldTypes.NUMBER,
+  datetime: FieldTypes.DATETIME,
+  tinyint: FieldTypes.BOOLEAN,
+}
+
+export enum SqlClients {
+  MS_SQL = "mssql",
+  POSTGRES = "pg",
+  MY_SQL = "mysql",
+}
 
 export function isExternalTable(tableId: string) {
   return tableId.includes(DocumentTypes.DATASOURCE)
@@ -68,8 +101,8 @@ export function breakRowIdField(_id: string | { _id: string }): any[] {
   }
 }
 
-export function convertType(type: string, map: { [key: string]: any }) {
-  for (let [external, internal] of Object.entries(map)) {
+export function convertSqlType(type: string) {
+  for (let [external, internal] of Object.entries(SQL_TYPE_MAP)) {
     if (type.toLowerCase().includes(external)) {
       return internal
     }
@@ -102,14 +135,14 @@ export function isIsoDateString(str: string) {
 }
 
 // add the existing relationships from the entities if they exist, to prevent them from being overridden
-export function copyExistingPropsOver(
+function copyExistingPropsOver(
   tableName: string,
-  tables: { [key: string]: any },
+  table: Table,
   entities: { [key: string]: any }
 ) {
   if (entities && entities[tableName]) {
     if (entities[tableName].primaryDisplay) {
-      tables[tableName].primaryDisplay = entities[tableName].primaryDisplay
+      table.primaryDisplay = entities[tableName].primaryDisplay
     }
     const existingTableSchema = entities[tableName].schema
     for (let key in existingTableSchema) {
@@ -117,8 +150,27 @@ export function copyExistingPropsOver(
         continue
       }
       if (existingTableSchema[key].type === "link") {
-        tables[tableName].schema[key] = existingTableSchema[key]
+        table.schema[key] = existingTableSchema[key]
       }
     }
   }
+  return table
+}
+
+export function finaliseExternalTables(
+  tables: { [key: string]: any },
+  entities: { [key: string]: any }
+) {
+  const finalTables: { [key: string]: any } = {}
+  const errors: { [key: string]: string } = {}
+  for (let [name, table] of Object.entries(tables)) {
+    // make sure every table has a key
+    if (table.primary == null || table.primary.length === 0) {
+      errors[name] = BuildSchemaErrors.NO_KEY
+      continue
+    }
+    // make sure all previous props have been added back
+    finalTables[name] = copyExistingPropsOver(name, table, entities)
+  }
+  return { tables: finalTables, errors }
 }
